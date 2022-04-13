@@ -5,14 +5,8 @@ train_y = []
 train_x = {}
 test_x = {}
 
-with open('dt_debug_testcases/input22.txt') as f:
-    lines = [line.rstrip() for line in f]
-    
-with open('dt_debug_testcases/output22.txt') as f:
-    answer = [line.rstrip() for line in f]
-
-# for line in sys.stdin:
-for line in lines:
+for line in sys.stdin:
+# for line in lines:
     sep_line = (line.split(' '))
     if int(sep_line[0]) != -1: #-1 is not training label
         train_y.append(sep_line[0])
@@ -82,33 +76,39 @@ def keymaxval(d):
 
 def get_attr_thresh(x,y,find_ideal=False):
     threshs = {}
-    for key in x.keys():
-        pos_vals = list(set([round(v,1) for v in x[key]]))
-        pos_vals.sort()
-        possible_threshes = []
-        if len(pos_vals) == 1:
-            possible_threshes.append(pos_vals[0])
-        for i in range(len(pos_vals)-1):
-            possible_threshes.append((pos_vals[i]+pos_vals[i+1])/2)
-        max_info = 0
-        key_thresh = 0
-#         first = True
-        for pt in possible_threshes:
-#             if first:
-#                 key_thresh = pt
-#                 first = False
-            temp = {key: pt}
-            test_info = get_info_gains(x, y, temp)[key]
-            if test_info > max_info:
-                max_info = test_info
-                key_thresh = pt
-            elif test_info == max_info:
-                if key_thresh > pt:
+    if not find_ideal:
+        for key in x.keys():
+            attrs = x[key]
+            threshold = sum(attrs)/len(attrs)
+            threshs[key] = (threshold)
+        return threshs
+    else:
+        threshs = {}
+        for key in x.keys():
+            pos_vals = list(set(x[key]))
+            pos_vals.sort()
+            possible_threshes = []
+            if len(pos_vals) == 1:
+                possible_threshes.append(pos_vals[0])
+            else:
+                for i in range(len(pos_vals)-1):
+                    possible_threshes.append((pos_vals[i]+pos_vals[i+1])/2)
+
+            max_info = 0
+            key_thresh = 0
+            first = True
+            for pt in possible_threshes:
+                if first:
+                    key_thresh = pt
+                    first = False
+                temp = {key: pt}
+                test_info = get_info_gains(x, y, temp)[key]
+                if test_info > max_info:
                     max_info = test_info
                     key_thresh = pt
-        threshs[key] = key_thresh
+            threshs[key] = key_thresh
 
-    return threshs
+        return threshs
 
 def get_overall_info(actuals):
     overall_info = 0
@@ -130,6 +130,7 @@ def get_overall_info(actuals):
 def get_info_gains(data, actuals, threshs):
     
     overall_info, class_lens = get_overall_info(actuals)
+
     ipns = {}
     for key in threshs.keys():
         temp_thresh = [0 if val <= threshs[key] else 1 for val in data[key]]
@@ -186,7 +187,7 @@ def make_left_right_split(data, actuals, threshs, biggest_gain):
 def get_leaf_vals(data, actuals, threshs, biggest_gain):
     _, _, left_y, right_y = make_left_right_split(data, actuals, threshs, biggest_gain) 
     return (get_common(left_y), get_common(right_y))
-
+    
 threshs = get_attr_thresh(train_x,train_y, find_ideal=True)
 ipns = get_info_gains(train_x, train_y, threshs)
 biggest_gain = keymaxval(ipns)
